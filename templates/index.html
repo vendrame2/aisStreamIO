@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AIS Map</title>
+    <meta charset="utf-8" />
+    <script src="https://unpkg.com/leaflet"></script>
+    <style>
+        #map { height: 100vh; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <script>
+        const map = L.map('map').setView([0, 0], 2);  // Inicializa o mapa
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+        const markers = {};
+
+        const eventSource = new EventSource('/stream');
+        eventSource.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            const shipId = data.ShipId;
+            const lat = data.Latitude;
+            const lon = data.Longitude;
+
+            // Se o marcador já existe, atualiza a posição
+            if (markers[shipId]) {
+                markers[shipId].setLatLng([lat, lon]);
+            } else {
+                // Caso contrário, cria um novo marcador
+                markers[shipId] = L.marker([lat, lon]).addTo(map);
+            }
+        };
+    </script>
+</body>
+</html>
