@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rotas Marítimas</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        #mapid { height: 600px; width: 100%; }
+    </style>
+</head>
+<body>
+    <h1>Traçar Rota Marítima</h1>
+
+    <form id="routeForm">
+        <label for="origin">Porto de Origem:</label>
+        <select name="port1" id="origin">
+            {% for port, coords in ports.items() %}
+                <option value="{{ port }}">{{ port }}</option>
+            {% endfor %}
+        </select>
+        
+        <label for="destination">Porto de Destino:</label>
+        <select name="port2" id="destination">
+            {% for port, coords in ports.items() %}
+                <option value="{{ port }}">{{ port }}</option>
+            {% endfor %}
+        </select>
+        
+        <button type="submit">Traçar Rota</button>
+    </form>
+
+    <h2 id="distanceText"></h2>
+
+    <div id="mapid"></div>
+
+    <script>
+        // Inicialização do mapa
+        var map = L.map('mapid').setView([0, 0], 2); // Posição inicial
+    
+        // Adicionar camada do OpenStreetMap
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 18,
+        }).addTo(map);
+
+        // Camada para as rotas
+        var routeLayer = null;
+
+        // Manipular submissão do formulário
+        $("#routeForm").submit(function(event) {
+            event.preventDefault();
+
+            var formData = new FormData();
+            formData.append("port1", $("#origin").val());
+            formData.append("port2", $("#destination").val());
+
+            $.ajax({
+                url: "/", // Certifique-se de que o endpoint está correto
+                type: "POST",
+                data: formData,
+                processData: false, // Não processar os dados
+                contentType: false, // Não definir o cabeçalho Content-Type
+                success: function(response) {
+                    if (response.error) {
+                        alert(response.error);
+                        return;
+                    }
+
+                    var coordinates = response.coordinates;
+                    var length_nautical = response.length_nautical;
+                    var length_km = response.length_km;
+
+                    // Remover a camada de rota anterior, se existir
+                    if (routeLayer) {
+                        map.removeLayer(routeLayer);
+                    }
+
+                    // Adicionar a nova camada da rota
+                    routeLayer = L.polyline(coordinates, { color: 'blue', weight: 3 }).addTo(map);
+
+                    // Ajustar o mapa para exibir a rota
+                    map.fitBounds(routeLayer.getBounds());
+
+                    // Atualizar a distância
+                    $("#distanceText").html(
+                        `Distância: ${length_nautical.toFixed(2)} milhas náuticas / ${length_km.toFixed(2)} km`
+                    );
+                },
+                error: function() {
+                    alert("Erro ao traçar a rota.");
+                }
+            });
+        });
+    </script>
+</body>
+</html>

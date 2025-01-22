@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rotas Marítimas</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        #mapid { height: 600px; width: 100%; }
+    </style>
+</head>
+<body>
+    <h1>Traçar Rota Marítima</h1>
+
+    <form id="routeForm">
+        <label for="origin">Porto de Origem:</label>
+        <select name="origin" id="origin">
+            {% for port, coords in ports.items() %}
+                <option value="{{ port }}">{{ port }}</option>
+            {% endfor %}
+        </select>
+        
+        <label for="destination">Porto de Destino:</label>
+        <select name="destination" id="destination">
+            {% for port, coords in ports.items() %}
+                <option value="{{ port }}">{{ port }}</option>
+            {% endfor %}
+        </select>
+        
+        <button type="submit">Traçar Rota</button>
+    </form>
+
+    <h2 id="distanceText"></h2>
+    <h2 id="distanceText2"></h2>
+
+    <div id="mapid"></div>
+
+    <script>
+        // Inicialização do mapa
+        var map = L.map('mapid').setView([-23.99049, -46.10390], 8);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 18,
+        }).addTo(map);
+
+        // Camadas para as rotas
+        var routeLayerLocal = L.layerGroup();
+        var routeLayerExternal = L.layerGroup();
+
+        // Adicionar controle de camadas
+        var baseLayers = {
+            "Rota Calculada Localmente": routeLayerLocal,
+            "Rota Calculada pela API Externa": routeLayerExternal
+        };
+
+        L.control.layers(null, baseLayers).addTo(map);
+
+        // Submeter formulário
+        $("#routeForm").submit(function(event) {
+            event.preventDefault();
+
+            var origin = $("#origin").val();
+            var destination = $("#destination").val();
+
+            // Rota calculada localmente
+            $.post("/", { origin: origin, destination: destination }, function(response) {
+                routeLayerLocal.clearLayers();
+                L.polyline(response.coordinates, { color: 'blue', weight: 5 }).addTo(routeLayerLocal);
+                $("#distanceText").html(`Distância Local: ${response.length_nautical.toFixed(2)} milhas náuticas / ${response.length_km.toFixed(2)} km | Duração da VIagem: ${response.duration_hours.toFixed(2)} Horas ( ${response.duration_hours.toFixed(2)/24} Dias)`);
+                //map.fitBounds(routeLayerLocal.getBounds());
+            });
+
+            // Rota calculada pela API externa
+            var formData = new FormData();
+            formData.append("port1", origin);
+            formData.append("port2", destination);
+
+            $.ajax({
+                url: "/api",  // Endpoint para a API externa
+                type: "POST",
+                data: formData,
+                processData: false,  // Não processa os dados
+                contentType: false,  // Não envia o cabeçalho de tipo
+                success: function(response) {
+                    //console.log('Response da API:', response);
+                    
+                    // Verificando se a API retornou a rota e que o array 'route' existe e possui coordenadas
+                    if (response.route && response.route.route && response.route.route.length > 0) {
+                        routeLayerExternal.clearLayers();
+                        
+                        // Desenhando a rota no mapa com as coordenadas da chave 'route' dentro de 'response.route'
+                        L.polyline(response.route.route, { color: 'red', weight: 3 }).addTo(routeLayerExternal);
+                        
+                        // Exibindo a distância retornada pela API
+                        $("#distanceText2").html(`Distância Externa: ${response.distance.distance.toFixed(2)} milhas náuticas`);
+                        
+                        // Ajustando o mapa para exibir a rota desenhada
+                        //map.fitBounds(routeLayerExternal.getBounds);
+                    } else {
+                        console.error('Erro ao obter a rota da API');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Erro de requisição:', error);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
