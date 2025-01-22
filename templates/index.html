@@ -1,9 +1,12 @@
+
 <!DOCTYPE html>
 <html>
 <head>
     <title>AIS Map</title>
     <meta charset="utf-8" />
-    <script src="https://unpkg.com/leaflet"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <style>
         #map { height: 100vh; }
     </style>
@@ -11,23 +14,30 @@
 <body>
     <div id="map"></div>
     <script>
-        const map = L.map('map').setView([0, 0], 2);  // Inicializa o mapa
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        // Inicializa o mapa apenas uma vez
+        const map = L.map('map').setView([-24.0, -46.0], 8); // Coordenadas centradas em Santos
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: 'Map data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'
+        }).addTo(map);
 
+        // Objeto para armazenar os marcadores dos navios
         const markers = {};
 
-        const eventSource = new EventSource('/stream');
+        // Abre a conexão com o WebSocket
+        const eventSource = new WebSocket('ws://' + window.location.host + '/ws');
         eventSource.onmessage = function(event) {
             const data = JSON.parse(event.data);
             const shipId = data.ShipId;
             const lat = data.Latitude;
             const lon = data.Longitude;
 
-            // Se o marcador já existe, atualiza a posição
+            // Atualiza ou cria marcadores no mapa
             if (markers[shipId]) {
+                // Atualiza a posição do marcador existente
                 markers[shipId].setLatLng([lat, lon]);
             } else {
-                // Caso contrário, cria um novo marcador
+                // Cria um novo marcador
                 markers[shipId] = L.marker([lat, lon]).addTo(map);
             }
         };
