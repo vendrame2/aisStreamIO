@@ -35,7 +35,8 @@ async def connect_ais_stream():
             if message_type == "PositionReport":
                 # the message parameter contains a key of the message type which contains the message itself
                 ais_message = message['Message']['PositionReport']
-                print(f"[{datetime.now(timezone.utc)}] ShipId: {ais_message['UserID']} Latitude: {ais_message['Latitude']} Latitude: {ais_message['Longitude']}")
+                metaData = message['MetaData'] 
+                print(f"[{datetime.now(timezone.utc)}] ShipId: {ais_message['UserID']} Latitude: {ais_message['Latitude']} Longitude: {ais_message['Longitude']} ShipName: {metaData['ShipName']} ")
         print("Encerrado")
         print("")
 if __name__ == "__main__":
